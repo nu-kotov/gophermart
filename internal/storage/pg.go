@@ -1,10 +1,12 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/nu-kotov/gophermart/internal/models"
 	"github.com/pressly/goose/v3"
 )
 
@@ -37,4 +39,28 @@ func NewConnect(connString string) (*DBStorage, error) {
 	dbInstance = &DBStorage{db}
 
 	return dbInstance, nil
+}
+
+func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) error {
+
+	sql := `INSERT INTO users (login, password) VALUES ($1, $2);`
+
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		sql,
+		data.Login,
+		data.Password,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
