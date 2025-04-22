@@ -64,3 +64,30 @@ func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) 
 
 	return tx.Commit()
 }
+
+func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData) error {
+
+	sql := `INSERT INTO orders (number, user_id, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`
+
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		sql,
+		data.Number,
+		data.UserID,
+		data.Status,
+		data.Accrual,
+		data.UploadedAt,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}

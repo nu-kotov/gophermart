@@ -9,6 +9,7 @@ import (
 
 type Storage interface {
 	InsertUserData(ctx context.Context, data *models.UserData) error
+	InsertOrderData(ctx context.Context, data *models.OrderData) error
 }
 
 func NewStorage(c config.Config) (Storage, error) {

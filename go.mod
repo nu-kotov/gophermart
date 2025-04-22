@@ -1,6 +1,6 @@
 module github.com/nu-kotov/gophermart
 
-go 1.23.0
+go 1.23.1
 
 toolchain go1.23.8
 
@@ -12,10 +12,12 @@ require (
 )
 
 require (
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/phedde/luhn-algorithm v0.0.0-20241101133237-e52d92f74c0d // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
