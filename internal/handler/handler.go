@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
+	"github.com/nu-kotov/gophermart/internal/auth"
 	"github.com/nu-kotov/gophermart/internal/config"
 	"github.com/nu-kotov/gophermart/internal/models"
 	"github.com/nu-kotov/gophermart/internal/storage"
@@ -49,6 +50,7 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	jsonBody.Password = passwordHash
+	jsonBody.UserID = uuid.New().String()
 
 	err = srv.Storage.InsertUserData(req.Context(), &jsonBody)
 	if err != nil {
@@ -56,9 +58,67 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	value, err := auth.BuildJWTString(jsonBody.UserID, jsonBody.Login)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	cookie := &http.Cookie{
+		Name:     "token",
+		Value:    value,
+		HttpOnly: true,
+	}
+
+	http.SetCookie(res, cookie)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	io.WriteString(res, "User registered")
+}
+
+func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var jsonBody models.UserData
+	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userData, err := srv.Storage.SelectUserData(req.Context(), &jsonBody)
+	if err != nil {
+		http.Error(res, "Get user password error", http.StatusInternalServerError)
+		return
+	}
+
+	match, err := argon2id.ComparePasswordAndHash(jsonBody.Password, userData.Password)
+	if err != nil {
+		http.Error(res, "Password comparing error", http.StatusInternalServerError)
+		return
+	}
+	if !match {
+		http.Error(res, "Uncorrect passwort or login", http.StatusUnauthorized)
+		return
+	}
+
+	value, err := auth.BuildJWTString(userData.UserID, userData.Login)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	cookie := &http.Cookie{
+		Name:     "token",
+		Value:    value,
+		HttpOnly: true,
+	}
+
+	http.SetCookie(res, cookie)
+	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, "User authorized")
 }
 
 func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {

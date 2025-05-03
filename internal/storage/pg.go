@@ -65,6 +65,26 @@ func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) 
 	return tx.Commit()
 }
 
+func (pg *DBStorage) SelectUserData(ctx context.Context, data *models.UserData) (*models.UserData, error) {
+
+	var userData models.UserData
+
+	sql := `SELECT user_id, password from users WHERE login = $1`
+
+	row := pg.db.QueryRowContext(
+		ctx,
+		sql,
+		data.Login,
+	)
+
+	err := row.Scan(&userData.UserID, &userData.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userData, nil
+}
+
 func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData) error {
 
 	sql := `INSERT INTO orders (number, user_id, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`
