@@ -143,7 +143,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 		Number:     intBody,
 		UserID:     uuid.New().String(),
 		Status:     "NEW",
-		UploadedAt: time.Now(),
+		UploadedAt: time.Now().String(),
 	}
 	err = srv.Storage.InsertOrderData(req.Context(), &orderData)
 	if err != nil {
@@ -153,4 +153,38 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusAccepted)
+}
+
+func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
+	token, err := req.Cookie("token")
+
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	userID, err := auth.GetUserID(token.Value)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	if data, err := srv.Storage.SelectOrdersByUserID(req.Context(), userID); data != nil {
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		resp, err := json.Marshal(data)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		_, err = res.Write(resp)
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+	} else {
+		res.WriteHeader(http.StatusNoContent)
+	}
 }

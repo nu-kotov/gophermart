@@ -4,11 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nu-kotov/gophermart/internal/models"
 	"github.com/pressly/goose/v3"
 )
+
+var ErrNotFound = errors.New("data not found")
 
 type DBStorage struct {
 	db *sql.DB
@@ -110,4 +114,41 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 	}
 
 	return tx.Commit()
+}
+
+func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([]models.OrderData, error) {
+	var data []models.OrderData
+
+	query := `SELECT number, status, accrual, uploaded_at from orders WHERE user_id = $1 ORDER BY uploaded_at DESC`
+
+	rows, err := pg.db.Query(query, userID)
+
+	if err != nil {
+		return nil, ErrNotFound
+	}
+
+	for rows.Next() {
+		var number int64
+		var accrual float64
+		var status string
+		var uploaded_at time.Time
+
+		err := rows.Scan(&number, &status, &accrual, &uploaded_at)
+
+		if err != nil {
+			return nil, err
+		}
+
+		data = append(data, models.OrderData{
+			Number:     number,
+			Status:     status,
+			Accrual:    accrual,
+			UploadedAt: uploaded_at.Format(time.RFC1123),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
