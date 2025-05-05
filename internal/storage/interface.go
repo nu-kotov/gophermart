@@ -11,7 +11,8 @@ type Storage interface {
 	InsertUserData(context.Context, *models.UserData) error
 	InsertOrderData(context.Context, *models.OrderData) error
 	SelectUserData(context.Context, *models.UserData) (*models.UserData, error)
-	SelectOrdersByUserID(context.Context, string) ([]models.OrderData, error)
+	SelectOrdersByUserID(context.Context, string) ([]models.GetUserOrdersResponse, error)
+	SelectUserBalance(context.Context, string) (*models.UserBalance, error)
 }
 
 func NewStorage(c config.Config) (Storage, error) {

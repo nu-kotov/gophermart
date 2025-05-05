@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -116,8 +117,8 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 	return tx.Commit()
 }
 
-func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([]models.OrderData, error) {
-	var data []models.OrderData
+func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([]models.GetUserOrdersResponse, error) {
+	var data []models.GetUserOrdersResponse
 
 	query := `SELECT number, status, accrual, uploaded_at from orders WHERE user_id = $1 ORDER BY uploaded_at DESC`
 
@@ -131,19 +132,21 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 		var number int64
 		var accrual float64
 		var status string
-		var uploaded_at time.Time
+		var uploadedAt time.Time
 
-		err := rows.Scan(&number, &status, &accrual, &uploaded_at)
+		err := rows.Scan(&number, &status, &accrual, &uploadedAt)
 
 		if err != nil {
 			return nil, err
 		}
 
-		data = append(data, models.OrderData{
+		fmt.Println(err)
+
+		data = append(data, models.GetUserOrdersResponse{
 			Number:     number,
 			Status:     status,
 			Accrual:    accrual,
-			UploadedAt: uploaded_at.Format(time.RFC1123),
+			UploadedAt: uploadedAt.Format(time.RFC1123),
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -151,4 +154,24 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 	}
 
 	return data, nil
+}
+
+func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*models.UserBalance, error) {
+
+	var userBalance models.UserBalance
+
+	sql := `SELECT balance, withdrawn from users_balances WHERE user_id = $1`
+
+	row := pg.db.QueryRowContext(
+		ctx,
+		sql,
+		userID,
+	)
+
+	err := row.Scan(&userBalance.Balance, &userBalance.Withdrawn)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userBalance, nil
 }

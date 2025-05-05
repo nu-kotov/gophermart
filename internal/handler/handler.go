@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -122,6 +123,18 @@ func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {
 }
 
 func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
+
+	token, err := req.Cookie("token")
+
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	userID, err := auth.GetUserID(token.Value)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, "Invalid body", http.StatusBadRequest)
@@ -141,12 +154,13 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 
 	orderData := models.OrderData{
 		Number:     intBody,
-		UserID:     uuid.New().String(),
+		UserID:     userID,
 		Status:     "NEW",
-		UploadedAt: time.Now().String(),
+		UploadedAt: time.Now(),
 	}
 	err = srv.Storage.InsertOrderData(req.Context(), &orderData)
 	if err != nil {
+		fmt.Println(err)
 		http.Error(res, "Create order error", http.StatusInternalServerError)
 		return
 	}
@@ -166,8 +180,43 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
+	fmt.Println(userID)
 	res.Header().Set("Content-Type", "application/json")
 	if data, err := srv.Storage.SelectOrdersByUserID(req.Context(), userID); data != nil {
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		resp, err := json.Marshal(data)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		_, err = res.Write(resp)
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+	} else {
+		res.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
+	token, err := req.Cookie("token")
+
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	userID, err := auth.GetUserID(token.Value)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	if data, err := srv.Storage.SelectUserBalance(req.Context(), userID); data != nil {
 
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
