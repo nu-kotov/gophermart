@@ -27,3 +27,8 @@ type GetUserOrdersResponse struct {
 	Accrual    float64 `json:"accrual"`
 	UploadedAt string  `json:"uploaded_at"`
 }
+
+type WithdrawnRequest struct {
+	Number string  `json:"order"`
+	Sum    float64 `json:"sum"`
+}

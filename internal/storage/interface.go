@@ -13,6 +13,7 @@ type Storage interface {
 	SelectUserData(context.Context, *models.UserData) (*models.UserData, error)
 	SelectOrdersByUserID(context.Context, string) ([]models.GetUserOrdersResponse, error)
 	SelectUserBalance(context.Context, string) (*models.UserBalance, error)
+	UpdateUserBalance(context.Context, string, *models.UserBalance) error
 }
 
 func NewStorage(c config.Config) (Storage, error) {

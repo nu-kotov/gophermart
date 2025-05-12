@@ -175,3 +175,28 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 
 	return &userBalance, nil
 }
+
+func (pg *DBStorage) UpdateUserBalance(ctx context.Context, userID string, newBalance *models.UserBalance) error {
+
+	sql := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
+
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		sql,
+		newBalance.Balance,
+		newBalance.Withdrawn,
+		userID,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}

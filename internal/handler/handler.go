@@ -237,3 +237,65 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusNoContent)
 	}
 }
+
+func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
+	token, err := req.Cookie("token")
+
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	userID, err := auth.GetUserID(token.Value)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	var jsonBody models.WithdrawnRequest
+	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println(jsonBody.Number)
+
+	intNumber, err := strconv.ParseInt(jsonBody.Number, 10, 64)
+	if err != nil {
+		http.Error(res, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if isValid := luhn.IsValid(intNumber); !isValid {
+		http.Error(res, "Invalid order number", http.StatusBadRequest)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	fmt.Println(data.Balance)
+	if data.Balance < jsonBody.Sum {
+		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)
+		return
+	}
+	data.Balance = data.Balance - jsonBody.Sum
+	data.Withdrawn = data.Withdrawn + jsonBody.Sum
+
+	fmt.Println(data.Balance)
+	err = srv.Storage.UpdateUserBalance(req.Context(), userID, data)
+	if err != nil {
+		http.Error(res, "User update error", http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusOK)
+}
