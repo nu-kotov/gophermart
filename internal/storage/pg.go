@@ -6,6 +6,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -176,9 +177,10 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 	return &userBalance, nil
 }
 
-func (pg *DBStorage) UpdateUserBalance(ctx context.Context, userID string, newBalance *models.UserBalance) error {
+func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.UserBalance, withdraw *models.Withdraw) error {
 
-	sql := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
+	update_users_balances := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
+	insert_withdrawal := `INSERT INTO withdrawals (number, user_id, sum, withdrawn_at) VALUES ($1, $2, $3, $4);`
 
 	tx, err := pg.db.Begin()
 	if err != nil {
@@ -187,10 +189,24 @@ func (pg *DBStorage) UpdateUserBalance(ctx context.Context, userID string, newBa
 
 	_, err = tx.ExecContext(
 		ctx,
-		sql,
+		update_users_balances,
 		newBalance.Balance,
 		newBalance.Withdrawn,
-		userID,
+		withdraw.UserID,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		insert_withdrawal,
+		withdraw.Number,
+		withdraw.UserID,
+		withdraw.Sum,
+		withdraw.WithdrawnAt,
 	)
 
 	if err != nil {
@@ -199,4 +215,41 @@ func (pg *DBStorage) UpdateUserBalance(ctx context.Context, userID string, newBa
 	}
 
 	return tx.Commit()
+}
+
+func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) ([]models.WithdrawnInfo, error) {
+	var data []models.WithdrawnInfo
+
+	query := `SELECT number, sum, withdrawn_at FROM withdrawals WHERE user_id = $1 ORDER BY withdrawn_at DESC`
+
+	rows, err := pg.db.Query(query, userID)
+
+	if err != nil {
+		return nil, ErrNotFound
+	}
+
+	for rows.Next() {
+		var number int64
+		var sum float64
+		var withdrawnAt time.Time
+
+		err := rows.Scan(&number, &sum, &withdrawnAt)
+
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println(err)
+
+		data = append(data, models.WithdrawnInfo{
+			Number:      strconv.FormatInt(number, 10),
+			Sum:         sum,
+			WithdrawnAt: withdrawnAt.Format(time.RFC1123),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

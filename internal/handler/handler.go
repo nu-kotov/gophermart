@@ -256,7 +256,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var jsonBody models.WithdrawnRequest
+	var jsonBody models.WithdrawnInfo
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
@@ -290,7 +290,13 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	data.Withdrawn = data.Withdrawn + jsonBody.Sum
 
 	fmt.Println(data.Balance)
-	err = srv.Storage.UpdateUserBalance(req.Context(), userID, data)
+	withdraw := models.Withdraw{
+		Number:      intNumber,
+		UserID:      userID,
+		Sum:         jsonBody.Sum,
+		WithdrawnAt: time.Now(),
+	}
+	err = srv.Storage.UpdateUserBalance(req.Context(), data, &withdraw)
 	if err != nil {
 		http.Error(res, "User update error", http.StatusInternalServerError)
 		return
@@ -298,4 +304,40 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusOK)
+}
+
+func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Request) {
+	token, err := req.Cookie("token")
+
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	userID, err := auth.GetUserID(token.Value)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	fmt.Println(userID)
+	if data, err := srv.Storage.SelectUserWithdrawals(req.Context(), userID); data != nil {
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		resp, err := json.Marshal(data)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+		_, err = res.Write(resp)
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		}
+
+	} else {
+		res.WriteHeader(http.StatusNoContent)
+	}
 }
