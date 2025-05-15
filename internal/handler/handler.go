@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/argon2id"
+	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
 	"github.com/nu-kotov/gophermart/internal/auth"
 	"github.com/nu-kotov/gophermart/internal/config"
@@ -339,5 +341,35 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 
 	} else {
 		res.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (srv *Service) GetAccrualPoints() {
+	ticker := time.NewTicker(10 * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
+			if err != nil {
+				fmt.Println(err.Error())
+				// logger.Log.Info(err.Error())
+				continue
+			}
+			if len(unprocessedOrders) == 0 {
+				continue
+			}
+
+			client := resty.New()
+			for _, number := range unprocessedOrders {
+				resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + number)
+				if err != nil {
+					fmt.Println(err.Error())
+					// logger.Log.Info(err.Error())
+					continue
+				}
+			}
+
+		}
 	}
 }

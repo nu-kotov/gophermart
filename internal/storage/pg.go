@@ -253,3 +253,34 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 
 	return data, nil
 }
+
+func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, error) {
+	var numbers []string
+
+	query := `SELECT number FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
+
+	rows, err := pg.db.Query(query)
+
+	if err != nil {
+		return nil, ErrNotFound
+	}
+
+	for rows.Next() {
+		var number int64
+
+		err := rows.Scan(&number)
+
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println(err)
+
+		numbers = append(numbers, strconv.FormatInt(number, 10))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return numbers, nil
+}
