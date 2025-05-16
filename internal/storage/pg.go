@@ -284,3 +284,32 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, err
 
 	return numbers, nil
 }
+
+func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.AccrualResponse) error {
+
+	update_order := `UPDATE orders SET status='PROCESSED', accrual=$1 WHERE number = $2`
+
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	intNumber, err := strconv.ParseInt(pointsData.Number, 10, 64)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	_, err = tx.ExecContext(
+		ctx,
+		update_order,
+		pointsData.Accrual,
+		intNumber,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}

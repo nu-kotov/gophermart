@@ -30,6 +30,8 @@ func NewService(config config.Config, storage storage.Storage) *Service {
 	srv.Config = config
 	srv.Storage = storage
 
+	go srv.GetAccrualPoints()
+
 	return &srv
 }
 
@@ -157,7 +159,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	orderData := models.OrderData{
 		Number:     intBody,
 		UserID:     userID,
-		Status:     "NEW",
+		Status:     "REGISTERED",
 		UploadedAt: time.Now(),
 	}
 	err = srv.Storage.InsertOrderData(req.Context(), &orderData)
@@ -345,29 +347,45 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 }
 
 func (srv *Service) GetAccrualPoints() {
+	fmt.Println("Получаем баллы")
 	ticker := time.NewTicker(10 * time.Second)
 
 	for {
 		select {
 		case <-ticker.C:
+			fmt.Println("Получаем необработанные заказы")
 			unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
 			if err != nil {
 				fmt.Println(err.Error())
 				// logger.Log.Info(err.Error())
 				continue
 			}
+			fmt.Println("Необработанные заказы", unprocessedOrders)
 			if len(unprocessedOrders) == 0 {
 				continue
 			}
 
 			client := resty.New()
 			for _, number := range unprocessedOrders {
+				fmt.Println("Получаем заказ", number)
+				fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+number)
 				resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + number)
 				if err != nil {
 					fmt.Println(err.Error())
 					// logger.Log.Info(err.Error())
 					continue
 				}
+
+				var accrualData models.AccrualResponse
+				err = json.Unmarshal(resp.Body(), &accrualData)
+				// Поля с баллами может не быть
+				if err != nil {
+					fmt.Println(err.Error())
+					// logger.Log.Info(err.Error())
+					continue
+				}
+				srv.Storage.UpdateOrder(context.Background(), &accrualData)
+
 			}
 
 		}

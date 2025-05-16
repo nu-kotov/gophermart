@@ -16,6 +16,7 @@ type Storage interface {
 	UpdateUserBalance(context.Context, *models.UserBalance, *models.Withdraw) error
 	SelectUserWithdrawals(context.Context, string) ([]models.WithdrawnInfo, error)
 	SelectUnprocessedOrders(ctx context.Context) ([]string, error)
+	UpdateOrder(context.Context, *models.AccrualResponse) error
 }
 
 func NewStorage(c config.Config) (Storage, error) {
