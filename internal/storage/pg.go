@@ -254,10 +254,79 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 	return data, nil
 }
 
-func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, error) {
-	var numbers []string
+// func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, error) {
+// 	var numbers []string
 
-	query := `SELECT number FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
+// 	query := `SELECT number FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
+
+// 	rows, err := pg.db.Query(query)
+
+// 	if err != nil {
+// 		return nil, ErrNotFound
+// 	}
+
+// 	for rows.Next() {
+// 		var number int64
+
+// 		err := rows.Scan(&number)
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		fmt.Println(err)
+
+// 		numbers = append(numbers, strconv.FormatInt(number, 10))
+// 	}
+// 	if err := rows.Err(); err != nil {
+// 		return nil, err
+// 	}
+
+// 	return numbers, nil
+// }
+
+func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders) error {
+
+	update_order := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
+	update_users_balances := `UPDATE users_balances SET balance=balance+$1 WHERE user_id=$2`
+
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		update_order,
+		pointsData.Status,
+		pointsData.Accrual,
+		pointsData.Number,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		update_users_balances,
+		pointsData.Accrual,
+		pointsData.UserID,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orders, error) {
+	var unprocessedOrders []models.Orders
+
+	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
 
 	rows, err := pg.db.Query(query)
 
@@ -267,8 +336,11 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, err
 
 	for rows.Next() {
 		var number int64
+		var user_id string
+		var accrual float64
+		var status string
 
-		err := rows.Scan(&number)
+		err := rows.Scan(&number, &user_id, &status, &accrual)
 
 		if err != nil {
 			return nil, err
@@ -276,40 +348,16 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, err
 
 		fmt.Println(err)
 
-		numbers = append(numbers, strconv.FormatInt(number, 10))
+		unprocessedOrders = append(unprocessedOrders, models.Orders{
+			Number:  number,
+			Status:  status,
+			Accrual: accrual,
+			UserID:  user_id,
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return numbers, nil
-}
-
-func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.AccrualResponse) error {
-
-	update_order := `UPDATE orders SET status='PROCESSED', accrual=$1 WHERE number = $2`
-
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	intNumber, err := strconv.ParseInt(pointsData.Number, 10, 64)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	_, err = tx.ExecContext(
-		ctx,
-		update_order,
-		pointsData.Accrual,
-		intNumber,
-	)
-
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
+	return unprocessedOrders, nil
 }

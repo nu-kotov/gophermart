@@ -366,10 +366,11 @@ func (srv *Service) GetAccrualPoints() {
 			}
 
 			client := resty.New()
-			for _, number := range unprocessedOrders {
-				fmt.Println("Получаем заказ", number)
-				fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+number)
-				resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + number)
+			for _, order := range unprocessedOrders {
+				strNum := strconv.FormatInt(order.Number, 10)
+				fmt.Println("Получаем заказ", strNum)
+				fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+strNum)
+				resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + strNum)
 				if err != nil {
 					fmt.Println(err.Error())
 					// logger.Log.Info(err.Error())
@@ -384,10 +385,17 @@ func (srv *Service) GetAccrualPoints() {
 					// logger.Log.Info(err.Error())
 					continue
 				}
-				srv.Storage.UpdateOrder(context.Background(), &accrualData)
-
+				if accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" || accrualData.Accrual != 0 {
+					order.Accrual = accrualData.Accrual
+					order.Status = accrualData.Status
+					err = srv.Storage.UpdateOrder(context.Background(), &order)
+					if err != nil {
+						fmt.Println(err.Error())
+						// logger.Log.Info(err.Error())
+						continue
+					}
+				}
 			}
-
 		}
 	}
 }

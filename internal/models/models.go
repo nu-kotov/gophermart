@@ -46,3 +46,11 @@ type AccrualResponse struct {
 	Status  string  `json:"status"`
 	Accrual float64 `json:"accrual"`
 }
+
+type Orders struct {
+	Number     int64   `json:"number"`
+	UserID     string  `json:"user_id"`
+	Status     string  `json:"status"`
+	Accrual    float64 `json:"accrual"`
+	UploadedAt string  `json:"uploaded_at"`
+}
