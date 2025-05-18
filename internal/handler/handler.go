@@ -77,7 +77,7 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 	http.SetCookie(res, cookie)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
-	io.WriteString(res, "User registered")
+	io.WriteString(res, fmt.Sprintf("User %s registered", jsonBody.Login))
 }
 
 func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {

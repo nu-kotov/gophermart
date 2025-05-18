@@ -179,8 +179,8 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 
 func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.UserBalance, withdraw *models.Withdraw) error {
 
-	update_users_balances := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
-	insert_withdrawal := `INSERT INTO withdrawals (number, user_id, sum, withdrawn_at) VALUES ($1, $2, $3, $4);`
+	updateUsersBalances := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
+	insertWithdrawal := `INSERT INTO withdrawals (number, user_id, sum, withdrawn_at) VALUES ($1, $2, $3, $4);`
 
 	tx, err := pg.db.Begin()
 	if err != nil {
@@ -189,7 +189,7 @@ func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.U
 
 	_, err = tx.ExecContext(
 		ctx,
-		update_users_balances,
+		updateUsersBalances,
 		newBalance.Balance,
 		newBalance.Withdrawn,
 		withdraw.UserID,
@@ -202,7 +202,7 @@ func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.U
 
 	_, err = tx.ExecContext(
 		ctx,
-		insert_withdrawal,
+		insertWithdrawal,
 		withdraw.Number,
 		withdraw.UserID,
 		withdraw.Sum,
@@ -287,8 +287,8 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 
 func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders) error {
 
-	update_order := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
-	update_users_balances := `UPDATE users_balances SET balance=balance+$1 WHERE user_id=$2`
+	updateOrder := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
+	updateUsersBalances := `UPDATE users_balances SET balance=balance+$1 WHERE user_id=$2`
 
 	tx, err := pg.db.Begin()
 	if err != nil {
@@ -297,7 +297,7 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 
 	_, err = tx.ExecContext(
 		ctx,
-		update_order,
+		updateOrder,
 		pointsData.Status,
 		pointsData.Accrual,
 		pointsData.Number,
@@ -310,7 +310,7 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 
 	_, err = tx.ExecContext(
 		ctx,
-		update_users_balances,
+		updateUsersBalances,
 		pointsData.Accrual,
 		pointsData.UserID,
 	)
@@ -336,11 +336,11 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orde
 
 	for rows.Next() {
 		var number int64
-		var user_id string
+		var userID string
 		var accrual float64
 		var status string
 
-		err := rows.Scan(&number, &user_id, &status, &accrual)
+		err := rows.Scan(&number, &userID, &status, &accrual)
 
 		if err != nil {
 			return nil, err
@@ -352,7 +352,7 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orde
 			Number:  number,
 			Status:  status,
 			Accrual: accrual,
-			UserID:  user_id,
+			UserID:  userID,
 		})
 	}
 	if err := rows.Err(); err != nil {
