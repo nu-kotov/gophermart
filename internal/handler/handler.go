@@ -350,50 +350,47 @@ func (srv *Service) GetAccrualPoints() {
 	fmt.Println("Получаем баллы")
 	ticker := time.NewTicker(10 * time.Second)
 
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Получаем необработанные заказы")
-			unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
+	for range ticker.C {
+		fmt.Println("Получаем необработанные заказы")
+		unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
+		if err != nil {
+			fmt.Println(err.Error())
+			// logger.Log.Info(err.Error())
+			continue
+		}
+		fmt.Println("Необработанные заказы", unprocessedOrders)
+		if len(unprocessedOrders) == 0 {
+			continue
+		}
+
+		client := resty.New()
+		for _, order := range unprocessedOrders {
+			strNum := strconv.FormatInt(order.Number, 10)
+			fmt.Println("Получаем заказ", strNum)
+			fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+strNum)
+			resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + strNum)
 			if err != nil {
 				fmt.Println(err.Error())
 				// logger.Log.Info(err.Error())
 				continue
 			}
-			fmt.Println("Необработанные заказы", unprocessedOrders)
-			if len(unprocessedOrders) == 0 {
+
+			var accrualData models.AccrualResponse
+			err = json.Unmarshal(resp.Body(), &accrualData)
+			// Поля с баллами может не быть
+			if err != nil {
+				fmt.Println(err.Error())
+				// logger.Log.Info(err.Error())
 				continue
 			}
-
-			client := resty.New()
-			for _, order := range unprocessedOrders {
-				strNum := strconv.FormatInt(order.Number, 10)
-				fmt.Println("Получаем заказ", strNum)
-				fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+strNum)
-				resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + strNum)
+			if accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" || accrualData.Accrual != 0 {
+				order.Accrual = accrualData.Accrual
+				order.Status = accrualData.Status
+				err = srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
 					fmt.Println(err.Error())
 					// logger.Log.Info(err.Error())
 					continue
-				}
-
-				var accrualData models.AccrualResponse
-				err = json.Unmarshal(resp.Body(), &accrualData)
-				// Поля с баллами может не быть
-				if err != nil {
-					fmt.Println(err.Error())
-					// logger.Log.Info(err.Error())
-					continue
-				}
-				if accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" || accrualData.Accrual != 0 {
-					order.Accrual = accrualData.Accrual
-					order.Status = accrualData.Status
-					err = srv.Storage.UpdateOrder(context.Background(), &order)
-					if err != nil {
-						fmt.Println(err.Error())
-						// logger.Log.Info(err.Error())
-						continue
-					}
 				}
 			}
 		}
