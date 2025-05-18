@@ -18,6 +18,8 @@ func NewConfig() Config {
 	flag.StringVar(&config.DatabaseConnection, "d", "", "Database connection string")
 	flag.StringVar(&config.AccrualAddr, "r", "http://localhost:8888", "default schema, host and port in compressed URL")
 
+	flag.Parse()
+
 	if envRunAddr, ok := os.LookupEnv("RUN_ADDRESS"); ok {
 		config.RunAddr = envRunAddr
 	}
@@ -27,8 +29,6 @@ func NewConfig() Config {
 	if envAccrualAddr, ok := os.LookupEnv("ACCRUAL_SYSTEM_ADDRESS"); ok {
 		config.DatabaseConnection = envAccrualAddr
 	}
-
-	flag.Parse()
 
 	return config
 }
