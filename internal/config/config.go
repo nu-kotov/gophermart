@@ -14,7 +14,7 @@ type Config struct {
 func NewConfig() Config {
 	var config Config
 
-	flag.StringVar(&config.RunAddr, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&config.RunAddr, "a", "localhost:8181", "address and port to run server")
 	flag.StringVar(&config.DatabaseConnection, "d", "", "Database connection string")
 	flag.StringVar(&config.AccrualAddr, "r", "http://localhost:8888", "default schema, host and port in compressed URL")
 
