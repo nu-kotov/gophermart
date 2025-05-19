@@ -284,7 +284,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
-
+	// если баланса нет?
 	fmt.Println(data.Balance)
 	if data.Balance < jsonBody.Sum {
 		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)

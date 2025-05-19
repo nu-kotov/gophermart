@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS withdrawals (
     number       BIGINT                   NOT NULL PRIMARY KEY,
     user_id      UUID                     NOT NULL,
-    sum          INT                      NULL,
+    sum          DECIMAL(12, 2)               NULL,
     withdrawn_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 -- +goose StatementEnd
