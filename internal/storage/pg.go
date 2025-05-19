@@ -144,7 +144,7 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 		fmt.Println(err)
 
 		data = append(data, models.GetUserOrdersResponse{
-			Number:     number,
+			Number:     strconv.FormatInt(number, 10),
 			Status:     status,
 			Accrual:    accrual,
 			UploadedAt: uploadedAt,
