@@ -147,7 +147,7 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 			Number:     number,
 			Status:     status,
 			Accrual:    accrual,
-			UploadedAt: uploadedAt.Format(time.RFC1123),
+			UploadedAt: uploadedAt,
 		})
 	}
 	if err := rows.Err(); err != nil {
