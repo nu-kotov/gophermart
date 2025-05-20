@@ -162,7 +162,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	orderData := models.OrderData{
 		Number:     intBody,
 		UserID:     userID,
-		Status:     "REGISTERED",
+		Status:     "NEW",
 		UploadedAt: time.Now(),
 	}
 	err = srv.Storage.InsertOrderData(req.Context(), &orderData)
@@ -356,7 +356,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 		}
 
 	} else {
-		res.WriteHeader(http.StatusNoContent)
+		res.WriteHeader(http.StatusOK)
 	}
 }
 
