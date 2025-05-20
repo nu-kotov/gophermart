@@ -133,6 +133,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		res.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
