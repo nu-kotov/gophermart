@@ -7,13 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nu-kotov/gophermart/internal/models"
 	"github.com/pressly/goose/v3"
 )
 
+var ErrUserOrderDuplicate = errors.New("current user data conflict")
+var ErrOrderDuplicate = errors.New("data conflict")
 var ErrNotFound = errors.New("data not found")
 
 type DBStorage struct {
@@ -112,6 +117,17 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 
 	if err != nil {
 		tx.Rollback()
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			fmt.Println(pgErr.Code, pgErr.Message)
+			if strings.Contains(pgErr.Message, "orders_pkey") {
+				return ErrUserOrderDuplicate
+			}
+
+			return ErrOrderDuplicate
+		}
+
 		return err
 	}
 

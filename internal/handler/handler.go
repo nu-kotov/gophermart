@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -152,7 +153,8 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if isValid := luhn.IsValid(intBody); !isValid {
-		http.Error(res, "Invalid order number", http.StatusBadRequest)
+		res.Header().Set("Content-Type", "text/plain")
+		res.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -163,13 +165,21 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 		UploadedAt: time.Now(),
 	}
 	err = srv.Storage.InsertOrderData(req.Context(), &orderData)
+	res.Header().Set("Content-Type", "text/plain")
 	if err != nil {
+		if errors.Is(err, storage.ErrUserOrderDuplicate) {
+			res.WriteHeader(http.StatusOK)
+			return
+		}
+		if errors.Is(err, storage.ErrOrderDuplicate) {
+			res.WriteHeader(http.StatusConflict)
+			return
+		}
 		fmt.Println(err)
 		http.Error(res, "Create order error", http.StatusInternalServerError)
 		return
 	}
 
-	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusAccepted)
 }
 
@@ -178,6 +188,7 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		res.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
@@ -315,6 +326,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 
 	if err != nil {
 		res.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
@@ -324,7 +336,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 
 	res.Header().Set("Content-Type", "application/json")
 	fmt.Println(userID)
-	if data, err := srv.Storage.SelectUserWithdrawals(req.Context(), userID); data != nil {
+	if data, err := srv.Storage.SelectUserWithdrawals(req.Context(), userID); len(data) > 0 {
 
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
@@ -335,6 +347,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
+		res.WriteHeader(http.StatusOK)
 		_, err = res.Write(resp)
 
 		if err != nil {
@@ -383,7 +396,7 @@ func (srv *Service) GetAccrualPoints() {
 				// logger.Log.Info(err.Error())
 				continue
 			}
-			if accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" || accrualData.Accrual != 0 {
+			if accrualData.Status == "PROCESSING" || accrualData.Status == "REGISTERED" || accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" || accrualData.Accrual != 0 {
 				order.Accrual = accrualData.Accrual
 				order.Status = accrualData.Status
 				err = srv.Storage.UpdateOrder(context.Background(), &order)
