@@ -174,7 +174,7 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 
 	var userBalance models.UserBalance
 
-	query := `SELECT balance, withdrawn from users_balances WHERE user_id = $1`
+	query := `SELECT balance, withdrawn FROM users_balances WHERE user_id = $1`
 
 	row := pg.db.QueryRowContext(
 		ctx,
