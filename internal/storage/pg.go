@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -120,7 +119,6 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
-			fmt.Println(pgErr.Code, pgErr.Message)
 			if strings.Contains(pgErr.Message, "orders_pkey") {
 				return ErrUserOrderDuplicate
 			}
@@ -156,8 +154,6 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Println(err)
 
 		data = append(data, models.GetUserOrdersResponse{
 			Number:     strconv.FormatInt(number, 10),
@@ -254,8 +250,6 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Println(err)
 
 		data = append(data, models.WithdrawnInfo{
 			Number:      strconv.FormatInt(number, 10),
@@ -361,8 +355,6 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orde
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Println(err)
 
 		unprocessedOrders = append(unprocessedOrders, models.Orders{
 			Number:  number,

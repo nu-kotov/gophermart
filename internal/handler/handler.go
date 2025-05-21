@@ -176,7 +176,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusConflict)
 			return
 		}
-		fmt.Println(err)
+
 		http.Error(res, "Create order error", http.StatusInternalServerError)
 		return
 	}
@@ -196,7 +196,6 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
-	fmt.Println(userID)
 
 	if data, err := srv.Storage.SelectOrdersByUserID(req.Context(), userID); data != nil {
 
@@ -277,14 +276,14 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	fmt.Println("Джейсоним тело.")
 	var jsonBody models.WithdrawnInfo
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println(jsonBody.Number)
-
+	fmt.Println("Преобразуем номер в инт.")
 	intNumber, err := strconv.ParseInt(jsonBody.Number, 10, 64)
 	if err != nil {
 		http.Error(res, "Invalid body", http.StatusBadRequest)
@@ -292,16 +291,16 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if isValid := luhn.IsValid(intNumber); !isValid {
-		http.Error(res, "Invalid order number", http.StatusBadRequest)
+		http.Error(res, "Invalid order number", http.StatusUnprocessableEntity)
 		return
 	}
 
+	fmt.Println("Получаем баланс.")
 	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 	// если баланса нет?
-	fmt.Println(data.Balance)
 	if data.Balance < jsonBody.Sum {
 		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)
 		return
@@ -309,7 +308,6 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	data.Balance = data.Balance - jsonBody.Sum
 	data.Withdrawn = data.Withdrawn + jsonBody.Sum
 
-	fmt.Println(data.Balance)
 	withdraw := models.Withdraw{
 		Number:      intNumber,
 		UserID:      userID,
@@ -340,7 +338,6 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	fmt.Println(userID)
 	if data, err := srv.Storage.SelectUserWithdrawals(req.Context(), userID); len(data) > 0 {
 
 		if err != nil {
@@ -365,18 +362,14 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 }
 
 func (srv *Service) GetAccrualPoints() {
-	fmt.Println("Получаем баллы")
 	ticker := time.NewTicker(2 * time.Second)
 
 	for range ticker.C {
-		fmt.Println("Получаем необработанные заказы")
 		unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
 		if err != nil {
-			fmt.Println(err.Error())
 			// logger.Log.Info(err.Error())
 			continue
 		}
-		fmt.Println("Необработанные заказы", unprocessedOrders)
 		if len(unprocessedOrders) == 0 {
 			continue
 		}
@@ -384,11 +377,9 @@ func (srv *Service) GetAccrualPoints() {
 		client := resty.New()
 		for _, order := range unprocessedOrders {
 			strNum := strconv.FormatInt(order.Number, 10)
-			fmt.Println("Получаем заказ", strNum)
-			fmt.Println("Адрес", srv.Config.AccrualAddr+"/api/orders/"+strNum)
+
 			resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + strNum)
 			if err != nil {
-				fmt.Println(err.Error())
 				// logger.Log.Info(err.Error())
 				continue
 			}
@@ -400,7 +391,6 @@ func (srv *Service) GetAccrualPoints() {
 			err = json.Unmarshal(resp.Body(), &accrualData)
 			// Поля с баллами может не быть
 			if err != nil {
-				fmt.Println(err.Error())
 				// logger.Log.Info(err.Error())
 				continue
 			}
@@ -409,7 +399,6 @@ func (srv *Service) GetAccrualPoints() {
 				order.Status = accrualData.Status
 				err = srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
-					fmt.Println(err.Error())
 					// logger.Log.Info(err.Error())
 					continue
 				}
