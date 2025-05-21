@@ -234,9 +234,11 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 	res.Header().Set("Content-Type", "application/json")
+	fmt.Println("Получаем баланс")
 	if data, err := srv.Storage.SelectUserBalance(req.Context(), userID); data != nil {
 
 		if err != nil {
+			fmt.Println(err)
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
@@ -245,6 +247,8 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
+		fmt.Println("Отправляем баланс")
+		fmt.Println(string(resp))
 		res.WriteHeader(http.StatusOK)
 		_, err = res.Write(resp)
 
@@ -253,7 +257,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		}
 
 	} else {
-		res.WriteHeader(http.StatusNoContent)
+		res.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -276,14 +280,12 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println("Джейсоним тело.")
 	var jsonBody models.WithdrawnInfo
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println("Преобразуем номер в инт.")
 	intNumber, err := strconv.ParseInt(jsonBody.Number, 10, 64)
 	if err != nil {
 		http.Error(res, "Invalid body", http.StatusBadRequest)
@@ -295,20 +297,16 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println("Получаем баланс.")
 	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNoBalance) {
 			res.WriteHeader(http.StatusOK)
 			return
 		}
-		fmt.Println("Ошибка получения баланса", err)
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// если баланса нет?
-	fmt.Println("Balance", data.Balance)
-	fmt.Println("jsonBody.Sum", jsonBody.Sum)
 	if data.Balance < jsonBody.Sum {
 		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)
 		return
