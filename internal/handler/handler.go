@@ -239,8 +239,8 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 		if errors.Is(err, storage.ErrUserNoBalance) {
-			resp, err := json.Marshal(models.UserBalance{
-				Balance:   0.0,
+			resp, err := json.Marshal(models.GetUserBalanceResponse{
+				Current:   0.0,
 				Withdrawn: 0.0,
 			})
 			if err != nil {
@@ -262,7 +262,11 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	resp, err := json.Marshal(data)
+	resp, err := json.Marshal(
+		models.GetUserBalanceResponse{
+			Current:   data.Balance,
+			Withdrawn: data.Balance,
+		})
 	if err != nil {
 		fmt.Println("Преобразуем баланс", err)
 		http.Error(res, err.Error(), http.StatusBadRequest)

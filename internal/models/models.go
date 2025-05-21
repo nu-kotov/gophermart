@@ -21,6 +21,11 @@ type UserBalance struct {
 	Withdrawn float64 `json:"withdrawn"`
 }
 
+type GetUserBalanceResponse struct {
+	Current   float64 `json:"current"`
+	Withdrawn float64 `json:"withdrawn"`
+}
+
 type GetUserOrdersResponse struct {
 	Number     string    `json:"number"`
 	Status     string    `json:"status"`
