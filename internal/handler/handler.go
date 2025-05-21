@@ -197,7 +197,7 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 	fmt.Println(userID)
-	res.Header().Set("Content-Type", "application/json")
+
 	if data, err := srv.Storage.SelectOrdersByUserID(req.Context(), userID); data != nil {
 
 		if err != nil {
@@ -209,6 +209,8 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusOK)
 		_, err = res.Write(resp)
 
 		if err != nil {
@@ -225,6 +227,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		res.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
@@ -243,6 +246,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
+		res.WriteHeader(http.StatusOK)
 		_, err = res.Write(resp)
 
 		if err != nil {
@@ -259,6 +263,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		res.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
@@ -291,7 +296,6 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Set("Content-Type", "application/json")
 	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -362,7 +366,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 
 func (srv *Service) GetAccrualPoints() {
 	fmt.Println("Получаем баллы")
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 
 	for range ticker.C {
 		fmt.Println("Получаем необработанные заказы")
@@ -386,6 +390,9 @@ func (srv *Service) GetAccrualPoints() {
 			if err != nil {
 				fmt.Println(err.Error())
 				// logger.Log.Info(err.Error())
+				continue
+			}
+			if resp.StatusCode() == 204 {
 				continue
 			}
 
