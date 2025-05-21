@@ -19,6 +19,7 @@ import (
 var ErrUserOrderDuplicate = errors.New("current user data conflict")
 var ErrOrderDuplicate = errors.New("data conflict")
 var ErrNotFound = errors.New("data not found")
+var ErrUserNoBalance = errors.New("user have not balance")
 
 type DBStorage struct {
 	db *sql.DB
@@ -173,16 +174,21 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 
 	var userBalance models.UserBalance
 
-	sql := `SELECT balance, withdrawn from users_balances WHERE user_id = $1`
+	query := `SELECT balance, withdrawn from users_balances WHERE user_id = $1`
 
 	row := pg.db.QueryRowContext(
 		ctx,
-		sql,
+		query,
 		userID,
 	)
 
 	err := row.Scan(&userBalance.Balance, &userBalance.Withdrawn)
 	if err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNoBalance
+		}
+
 		return nil, err
 	}
 

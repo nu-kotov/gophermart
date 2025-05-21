@@ -298,6 +298,10 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	fmt.Println("Получаем баланс.")
 	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
+		if errors.Is(err, storage.ErrUserNoBalance) {
+			res.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
 		fmt.Println("Ошибка получения баланса", err)
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
