@@ -234,33 +234,50 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 	fmt.Println("Получаем баланс")
-	if data, err := srv.Storage.SelectUserBalance(req.Context(), userID); data != nil {
+	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 
-		if err != nil {
-			fmt.Println(err)
-			http.Error(res, err.Error(), http.StatusBadRequest)
+	if err != nil {
+		fmt.Println(err)
+		if errors.Is(err, storage.ErrUserNoBalance) {
+			resp, err := json.Marshal(models.UserBalance{
+				Balance:   0.0,
+				Withdrawn: 0.0,
+			})
+			if err != nil {
+				fmt.Println("Преобразуем баланс", err)
+				http.Error(res, err.Error(), http.StatusBadRequest)
+			}
+
+			fmt.Println("Баланса нет Отправляем баланс")
+			fmt.Println(string(resp))
+			res.Header().Set("Content-Type", "application/json")
+			res.WriteHeader(http.StatusOK)
+			_, err = res.Write(resp)
+
+			if err != nil {
+				http.Error(res, err.Error(), http.StatusBadRequest)
+			}
+			return
 		}
-
-		resp, err := json.Marshal(data)
-		if err != nil {
-			fmt.Println("Преобразуем баланс", err)
-			http.Error(res, err.Error(), http.StatusBadRequest)
-		}
-
-		fmt.Println("Отправляем баланс")
-		fmt.Println(string(resp))
-		res.Header().Set("Content-Type", "application/json")
-		res.WriteHeader(http.StatusOK)
-		_, err = res.Write(resp)
-
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusBadRequest)
-		}
-
-	} else {
-		fmt.Println("Баланса нет")
-		res.WriteHeader(http.StatusOK)
+		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
+
+	resp, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Преобразуем баланс", err)
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	fmt.Println("Отправляем баланс")
+	fmt.Println(string(resp))
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	_, err = res.Write(resp)
+
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
 }
 
 func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
