@@ -258,6 +258,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		}
 
 	} else {
+		fmt.Println("Баланса нет")
 		res.WriteHeader(http.StatusOK)
 	}
 }

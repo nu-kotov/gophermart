@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -192,6 +193,7 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 		return nil, err
 	}
 
+	fmt.Println("userBalance.Balance", userBalance.Balance)
 	return &userBalance, nil
 }
 
