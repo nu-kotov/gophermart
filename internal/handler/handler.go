@@ -233,7 +233,6 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
-	res.Header().Set("Content-Type", "application/json")
 	fmt.Println("Получаем баланс")
 	if data, err := srv.Storage.SelectUserBalance(req.Context(), userID); data != nil {
 
@@ -244,11 +243,13 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 
 		resp, err := json.Marshal(data)
 		if err != nil {
+			fmt.Println("Преобразуем баланс", err)
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
 		fmt.Println("Отправляем баланс")
 		fmt.Println(string(resp))
+		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusOK)
 		_, err = res.Write(resp)
 
