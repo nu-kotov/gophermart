@@ -116,7 +116,6 @@ func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if !match {
-		logger.Log.Info(err.Error())
 		http.Error(res, "Uncorrect passwort or login", http.StatusUnauthorized)
 		return
 	}
