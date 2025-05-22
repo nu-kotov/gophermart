@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nu-kotov/gophermart/internal/auth"
 	"github.com/nu-kotov/gophermart/internal/config"
+	"github.com/nu-kotov/gophermart/internal/logger"
 	"github.com/nu-kotov/gophermart/internal/models"
 	"github.com/nu-kotov/gophermart/internal/storage"
 	"github.com/phedde/luhn-algorithm"
@@ -40,18 +41,21 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	var jsonBody models.UserData
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	passwordHash, err := argon2id.CreateHash(jsonBody.Password, argon2id.DefaultParams)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -60,12 +64,14 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 
 	err = srv.Storage.InsertUserData(req.Context(), &jsonBody)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Register user error", http.StatusInternalServerError)
 		return
 	}
 
 	value, err := auth.BuildJWTString(jsonBody.UserID, jsonBody.Login)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -84,34 +90,40 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	var jsonBody models.UserData
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	userData, err := srv.Storage.SelectUserData(req.Context(), &jsonBody)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Get user password error", http.StatusInternalServerError)
 		return
 	}
 
 	match, err := argon2id.ComparePasswordAndHash(jsonBody.Password, userData.Password)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Password comparing error", http.StatusInternalServerError)
 		return
 	}
 	if !match {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Uncorrect passwort or login", http.StatusUnauthorized)
 		return
 	}
 
 	value, err := auth.BuildJWTString(userData.UserID, userData.Login)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -132,29 +144,35 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	token, err := req.Cookie("token")
 
 	if err != nil {
+		logger.Log.Info(err.Error())
 		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Invalid body", http.StatusBadRequest)
 		return
 	}
 
 	intBody, err := strconv.ParseInt(string(body), 10, 64)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Invalid body", http.StatusBadRequest)
 		return
 	}
 
 	if isValid := luhn.IsValid(intBody); !isValid {
 		res.Header().Set("Content-Type", "text/plain")
+		logger.Log.Info("Invalid order number: not comply with the Luhn algorithm")
 		res.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
@@ -169,14 +187,16 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	if err != nil {
 		if errors.Is(err, storage.ErrUserOrderDuplicate) {
+			logger.Log.Info(fmt.Sprintf("Order %d has already been placed by the user %s", intBody, userID))
 			res.WriteHeader(http.StatusOK)
 			return
 		}
 		if errors.Is(err, storage.ErrOrderDuplicate) {
+			logger.Log.Info(fmt.Sprintf("Order %d has already been placed by the user %s", intBody, userID))
 			res.WriteHeader(http.StatusConflict)
 			return
 		}
-
+		logger.Log.Info(err.Error())
 		http.Error(res, "Create order error", http.StatusInternalServerError)
 		return
 	}
@@ -188,23 +208,27 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 	token, err := req.Cookie("token")
 
 	if err != nil {
+		logger.Log.Info("User unauthorized")
 		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
 	if data, err := srv.Storage.SelectOrdersByUserID(req.Context(), userID); data != nil {
 
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
 		resp, err := json.Marshal(data)
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
@@ -213,6 +237,7 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 		_, err = res.Write(resp)
 
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
@@ -225,36 +250,36 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 	token, err := req.Cookie("token")
 
 	if err != nil {
+		logger.Log.Info("User unauthorized")
 		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
 	}
-	fmt.Println("Получаем баланс")
-	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 
+	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
-		fmt.Println(err)
 		if errors.Is(err, storage.ErrUserNoBalance) {
 			resp, err := json.Marshal(models.GetUserBalanceResponse{
 				Current:   0.0,
 				Withdrawn: 0.0,
 			})
 			if err != nil {
-				fmt.Println("Преобразуем баланс", err)
+				logger.Log.Info(err.Error())
 				http.Error(res, err.Error(), http.StatusBadRequest)
 			}
 
-			fmt.Println("Баланса нет Отправляем баланс")
-			fmt.Println(string(resp))
 			res.Header().Set("Content-Type", "application/json")
 			res.WriteHeader(http.StatusOK)
 			_, err = res.Write(resp)
 
 			if err != nil {
+				logger.Log.Info(err.Error())
 				http.Error(res, err.Error(), http.StatusBadRequest)
 			}
 			return
@@ -268,54 +293,58 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 			Withdrawn: data.Withdrawn,
 		})
 	if err != nil {
-		fmt.Println("Преобразуем баланс", err)
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	fmt.Println("Отправляем баланс")
-	fmt.Println(string(resp))
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	_, err = res.Write(resp)
 
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
-
 }
 
 func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	token, err := req.Cookie("token")
 
 	if err != nil {
+		logger.Log.Info("User unauthorized")
 		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Invalid body", http.StatusBadRequest)
 		return
 	}
 
 	var jsonBody models.WithdrawnInfo
 	if err = json.Unmarshal(body, &jsonBody); err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	intNumber, err := strconv.ParseInt(jsonBody.Number, 10, 64)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "Invalid body", http.StatusBadRequest)
 		return
 	}
 
 	if isValid := luhn.IsValid(intNumber); !isValid {
+		logger.Log.Info("Invalid order number: not comply with the Luhn algorithm")
 		http.Error(res, "Invalid order number", http.StatusUnprocessableEntity)
 		return
 	}
@@ -329,7 +358,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// если баланса нет?
+
 	if data.Balance < jsonBody.Sum {
 		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)
 		return
@@ -345,6 +374,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 	}
 	err = srv.Storage.UpdateUserBalance(req.Context(), data, &withdraw)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, "User update error", http.StatusInternalServerError)
 		return
 	}
@@ -357,12 +387,14 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 	token, err := req.Cookie("token")
 
 	if err != nil {
+		logger.Log.Info("User unauthorized")
 		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	userID, err := auth.GetUserID(token.Value)
 	if err != nil {
+		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
@@ -370,11 +402,13 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 	if data, err := srv.Storage.SelectUserWithdrawals(req.Context(), userID); len(data) > 0 {
 
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
 		resp, err := json.Marshal(data)
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
@@ -382,6 +416,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 		_, err = res.Write(resp)
 
 		if err != nil {
+			logger.Log.Info(err.Error())
 			http.Error(res, err.Error(), http.StatusBadRequest)
 		}
 
@@ -396,7 +431,7 @@ func (srv *Service) GetAccrualPoints() {
 	for range ticker.C {
 		unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
 		if err != nil {
-			// logger.Log.Info(err.Error())
+			logger.Log.Info(err.Error())
 			continue
 		}
 		if len(unprocessedOrders) == 0 {
@@ -409,28 +444,26 @@ func (srv *Service) GetAccrualPoints() {
 
 			resp, err := client.R().Get(srv.Config.AccrualAddr + "/api/orders/" + strNum)
 			if err != nil {
-				// logger.Log.Info(err.Error())
+				logger.Log.Info(err.Error())
 				continue
 			}
-			if resp.StatusCode() == 204 || resp.StatusCode() == 429 {
+			if resp.StatusCode() == http.StatusNoContent || resp.StatusCode() == http.StatusTooManyRequests {
 				continue
 			}
 
-			fmt.Println("Получили данные по", strNum)
 			var accrualData models.AccrualResponse
 			err = json.Unmarshal(resp.Body(), &accrualData)
-			// Поля с баллами может не быть
 			if err != nil {
-				// logger.Log.Info(err.Error())
+				logger.Log.Info(err.Error())
 				continue
 			}
 			if accrualData.Status == "PROCESSING" || accrualData.Status == "REGISTERED" || accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" {
 				order.Accrual = accrualData.Accrual
-				//order.Accrual = 220.20
 				order.Status = accrualData.Status
+
 				err = srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
-					// logger.Log.Info(err.Error())
+					logger.Log.Info(err.Error())
 					continue
 				}
 			}

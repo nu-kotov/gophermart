@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -193,7 +192,6 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 		return nil, err
 	}
 
-	fmt.Println("userBalance.Balance", userBalance.Balance)
 	return &userBalance, nil
 }
 
@@ -272,37 +270,6 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 	return data, nil
 }
 
-// func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]string, error) {
-// 	var numbers []string
-
-// 	query := `SELECT number FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
-
-// 	rows, err := pg.db.Query(query)
-
-// 	if err != nil {
-// 		return nil, ErrNotFound
-// 	}
-
-// 	for rows.Next() {
-// 		var number int64
-
-// 		err := rows.Scan(&number)
-
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		fmt.Println(err)
-
-// 		numbers = append(numbers, strconv.FormatInt(number, 10))
-// 	}
-// 	if err := rows.Err(); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return numbers, nil
-// }
-
 func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders) error {
 
 	updateOrder := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
@@ -331,8 +298,6 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 		return err
 	}
 
-	fmt.Println("Обновляем баланс", pointsData.Accrual)
-
 	row := pg.db.QueryRowContext(
 		ctx,
 		currentBalance,
@@ -350,14 +315,12 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 		}
 	}
 
-	fmt.Println("Текущий баланс", curBalance)
 	_, err = tx.ExecContext(
 		ctx,
 		updateUsersBalances,
 		curBalance+pointsData.Accrual,
 		pointsData.UserID,
 	)
-	fmt.Println("Новый баланс", curBalance+pointsData.Accrual)
 	if err != nil {
 		tx.Rollback()
 		return err
