@@ -265,7 +265,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 	resp, err := json.Marshal(
 		models.GetUserBalanceResponse{
 			Current:   data.Balance,
-			Withdrawn: data.Balance,
+			Withdrawn: data.Withdrawn,
 		})
 	if err != nil {
 		fmt.Println("Преобразуем баланс", err)
