@@ -425,8 +425,8 @@ func (srv *Service) GetAccrualPoints() {
 				continue
 			}
 			if accrualData.Status == "PROCESSING" || accrualData.Status == "REGISTERED" || accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" {
-				//order.Accrual = accrualData.Accrual
-				order.Accrual = 220.20
+				order.Accrual = accrualData.Accrual
+				//order.Accrual = 220.20
 				order.Status = accrualData.Status
 				err = srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
