@@ -306,7 +306,12 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders) error {
 
 	updateOrder := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
-	updateUsersBalances := `UPDATE users_balances SET balance=balance+$1 WHERE user_id=$2`
+	currentBalance := `SELECT balance FROM users_balances WHERE user_id=$1`
+	updateUsersBalances := `
+	    INSERT INTO users_balances (balance, user_id) VALUES ($1, $2) ON CONFLICT (user_id)
+	    DO UPDATE 
+		    SET balance=$1;
+	`
 
 	tx, err := pg.db.Begin()
 	if err != nil {
@@ -326,13 +331,33 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 		return err
 	}
 
-	_, err = tx.ExecContext(
+	fmt.Println("Обновляем баланс", pointsData.Accrual)
+
+	row := pg.db.QueryRowContext(
 		ctx,
-		updateUsersBalances,
-		pointsData.Accrual,
+		currentBalance,
 		pointsData.UserID,
 	)
 
+	var curBalance float64
+	err = row.Scan(&curBalance)
+	if err != nil {
+
+		if errors.Is(err, sql.ErrNoRows) {
+			curBalance = 0.0
+		} else {
+			return err
+		}
+	}
+
+	fmt.Println("Текущий баланс", curBalance)
+	_, err = tx.ExecContext(
+		ctx,
+		updateUsersBalances,
+		curBalance+pointsData.Accrual,
+		pointsData.UserID,
+	)
+	fmt.Println("Новый баланс", curBalance+pointsData.Accrual)
 	if err != nil {
 		tx.Rollback()
 		return err
