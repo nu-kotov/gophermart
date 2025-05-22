@@ -344,7 +344,7 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orders, error) {
 	var unprocessedOrders []models.Orders
 
-	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
+	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('NEW', 'REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
 
 	rows, err := pg.db.Query(query)
 
