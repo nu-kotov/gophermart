@@ -22,8 +22,9 @@ import (
 )
 
 type Service struct {
-	Config  config.Config
-	Storage storage.Storage
+	Config              config.Config
+	Storage             storage.Storage
+	SaveAccrualPointsCh chan models.Orders
 }
 
 func NewService(config config.Config, storage storage.Storage) *Service {
@@ -31,6 +32,7 @@ func NewService(config config.Config, storage storage.Storage) *Service {
 
 	srv.Config = config
 	srv.Storage = storage
+	srv.SaveAccrualPointsCh = make(chan models.Orders, 1024)
 
 	go srv.GetAccrualPoints()
 
@@ -460,12 +462,37 @@ func (srv *Service) GetAccrualPoints() {
 				order.Accrual = accrualData.Accrual
 				order.Status = accrualData.Status
 
-				err = srv.Storage.UpdateOrder(context.Background(), &order)
+				srv.SaveAccrualPointsCh <- order
+			}
+		}
+	}
+}
+
+func (srv *Service) SaveOrdersPoints() {
+	ticker := time.NewTicker(5 * time.Second)
+
+	var OrdersForUpdate []models.Orders
+
+	for {
+		select {
+
+		case msg := <-srv.SaveAccrualPointsCh:
+			OrdersForUpdate = append(OrdersForUpdate, msg)
+
+		case <-ticker.C:
+			if len(OrdersForUpdate) == 0 {
+				continue
+			}
+
+			for _, order := range OrdersForUpdate {
+				err := srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
 					logger.Log.Info(err.Error())
 					continue
 				}
 			}
+
+			OrdersForUpdate = nil
 		}
 	}
 }
