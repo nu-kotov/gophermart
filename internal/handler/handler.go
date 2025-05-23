@@ -463,6 +463,7 @@ func (srv *Service) GetAccrualPoints() {
 				order.Accrual = accrualData.Accrual
 				order.Status = accrualData.Status
 
+				fmt.Println("Отправляем в канал", order)
 				srv.SaveAccrualPointsCh <- order
 			}
 		}
@@ -470,7 +471,7 @@ func (srv *Service) GetAccrualPoints() {
 }
 
 func (srv *Service) SaveOrdersPoints() {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 
 	var OrdersForUpdate []models.Orders
 
@@ -478,6 +479,7 @@ func (srv *Service) SaveOrdersPoints() {
 		select {
 
 		case msg := <-srv.SaveAccrualPointsCh:
+			fmt.Println(msg)
 			OrdersForUpdate = append(OrdersForUpdate, msg)
 
 		case <-ticker.C:
@@ -486,6 +488,7 @@ func (srv *Service) SaveOrdersPoints() {
 			}
 
 			for _, order := range OrdersForUpdate {
+				fmt.Println("В цикле", order)
 				err := srv.Storage.UpdateOrder(context.Background(), &order)
 				if err != nil {
 					logger.Log.Info(err.Error())
