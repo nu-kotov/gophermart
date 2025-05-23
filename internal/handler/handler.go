@@ -35,6 +35,7 @@ func NewService(config config.Config, storage storage.Storage) *Service {
 	srv.SaveAccrualPointsCh = make(chan models.Orders, 1024)
 
 	go srv.GetAccrualPoints()
+	go srv.SaveOrdersPoints()
 
 	return &srv
 }
