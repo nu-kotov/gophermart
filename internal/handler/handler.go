@@ -428,7 +428,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 }
 
 func (srv *Service) GetAccrualPoints() {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 
 	for range ticker.C {
 		unprocessedOrders, err := srv.Storage.SelectUnprocessedOrders(context.Background())
@@ -470,7 +470,7 @@ func (srv *Service) GetAccrualPoints() {
 }
 
 func (srv *Service) SaveOrdersPoints() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 
 	var OrdersForUpdate []models.Orders
 
