@@ -23,7 +23,7 @@ func main() {
 	service := handler.NewService(config, store)
 	router := NewRouter(*service)
 
-	//defer service.Storage.Close()
+	defer service.Storage.Close()
 
 	log.Fatal(http.ListenAndServe(config.RunAddr, router))
 }

@@ -52,6 +52,10 @@ func NewConnect(connString string) (*DBStorage, error) {
 	return dbInstance, nil
 }
 
+func (pg *DBStorage) Close() error {
+	return pg.db.Close()
+}
+
 func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) error {
 
 	sql := `INSERT INTO users (login, password) VALUES ($1, $2);`
