@@ -17,11 +17,6 @@ type OrderData struct {
 }
 
 type UserBalance struct {
-	Balance   float64 `json:"balance"`
-	Withdrawn float64 `json:"withdrawn"`
-}
-
-type GetUserBalanceResponse struct {
 	Current   float64 `json:"current"`
 	Withdrawn float64 `json:"withdrawn"`
 }
@@ -50,12 +45,4 @@ type AccrualResponse struct {
 	Number  string  `json:"order"`
 	Status  string  `json:"status"`
 	Accrual float64 `json:"accrual"`
-}
-
-type Orders struct {
-	Number     int64   `json:"number"`
-	UserID     string  `json:"user_id"`
-	Status     string  `json:"status"`
-	Accrual    float64 `json:"accrual"`
-	UploadedAt string  `json:"uploaded_at"`
 }

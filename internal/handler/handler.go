@@ -24,7 +24,7 @@ import (
 type Service struct {
 	Config              config.Config
 	Storage             storage.Storage
-	SaveAccrualPointsCh chan models.Orders
+	SaveAccrualPointsCh chan models.OrderData
 }
 
 func NewService(config config.Config, storage storage.Storage) *Service {
@@ -32,7 +32,7 @@ func NewService(config config.Config, storage storage.Storage) *Service {
 
 	srv.Config = config
 	srv.Storage = storage
-	srv.SaveAccrualPointsCh = make(chan models.Orders, 1024)
+	srv.SaveAccrualPointsCh = make(chan models.OrderData, 1024)
 
 	go srv.GetAccrualPoints()
 	go srv.SaveOrdersPoints()
@@ -267,7 +267,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 	data, err := srv.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNoBalance) {
-			resp, err := json.Marshal(models.GetUserBalanceResponse{
+			resp, err := json.Marshal(models.UserBalance{
 				Current:   0.0,
 				Withdrawn: 0.0,
 			})
@@ -289,11 +289,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	resp, err := json.Marshal(
-		models.GetUserBalanceResponse{
-			Current:   data.Balance,
-			Withdrawn: data.Withdrawn,
-		})
+	resp, err := json.Marshal(data)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -361,11 +357,11 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if data.Balance < jsonBody.Sum {
+	if data.Current < jsonBody.Sum {
 		http.Error(res, "Insufficient funds", http.StatusPaymentRequired)
 		return
 	}
-	data.Balance = data.Balance - jsonBody.Sum
+	data.Current = data.Current - jsonBody.Sum
 	data.Withdrawn = data.Withdrawn + jsonBody.Sum
 
 	withdraw := models.Withdraw{
@@ -472,7 +468,7 @@ func (srv *Service) GetAccrualPoints() {
 func (srv *Service) SaveOrdersPoints() {
 	ticker := time.NewTicker(1 * time.Second)
 
-	var OrdersForUpdate []models.Orders
+	var OrdersForUpdate []models.OrderData
 
 	for {
 		select {

@@ -182,7 +182,7 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 		userID,
 	)
 
-	err := row.Scan(&userBalance.Balance, &userBalance.Withdrawn)
+	err := row.Scan(&userBalance.Current, &userBalance.Withdrawn)
 	if err != nil {
 
 		if errors.Is(err, sql.ErrNoRows) {
@@ -208,7 +208,7 @@ func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.U
 	_, err = tx.ExecContext(
 		ctx,
 		updateUsersBalances,
-		newBalance.Balance,
+		newBalance.Current,
 		newBalance.Withdrawn,
 		withdraw.UserID,
 	)
@@ -270,7 +270,7 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 	return data, nil
 }
 
-func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders) error {
+func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderData) error {
 
 	updateOrder := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
 	currentBalance := `SELECT balance FROM users_balances WHERE user_id=$1`
@@ -329,8 +329,8 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.Orders)
 	return tx.Commit()
 }
 
-func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orders, error) {
-	var unprocessedOrders []models.Orders
+func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.OrderData, error) {
+	var unprocessedOrders []models.OrderData
 
 	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('NEW', 'REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
 
@@ -352,7 +352,7 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orde
 			return nil, err
 		}
 
-		unprocessedOrders = append(unprocessedOrders, models.Orders{
+		unprocessedOrders = append(unprocessedOrders, models.OrderData{
 			Number:  number,
 			Status:  status,
 			Accrual: accrual,
