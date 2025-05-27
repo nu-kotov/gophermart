@@ -14,7 +14,11 @@ func main() {
 	if err := logger.NewLogger("info"); err != nil {
 		log.Fatal("Error initialize zap logger: ", err)
 	}
-	config := config.NewConfig()
+	config, err := config.NewConfig()
+	if err != nil {
+		log.Fatal("Error initialize config: ", err)
+	}
+
 	store, err := storage.NewConnect(config.DatabaseConnection)
 	if err != nil {
 		log.Fatal("Error initialize storage: ", err)

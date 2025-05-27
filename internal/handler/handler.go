@@ -22,12 +22,12 @@ import (
 )
 
 type Service struct {
-	Config              config.Config
+	Config              *config.Config
 	Storage             storage.Storage
 	SaveAccrualPointsCh chan models.OrderData
 }
 
-func NewService(config config.Config, storage storage.Storage) *Service {
+func NewService(config *config.Config, storage storage.Storage) *Service {
 	var srv Service
 
 	srv.Config = config
@@ -72,7 +72,7 @@ func (srv *Service) RegisterUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	value, err := auth.BuildJWTString(jsonBody.UserID, jsonBody.Login)
+	value, err := auth.BuildJWTString(jsonBody.UserID, jsonBody.Login, srv.Config.TokenExp, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		res.WriteHeader(http.StatusBadRequest)
@@ -123,7 +123,7 @@ func (srv *Service) LoginUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	value, err := auth.BuildJWTString(userData.UserID, userData.Login)
+	value, err := auth.BuildJWTString(userData.UserID, userData.Login, srv.Config.TokenExp, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		res.WriteHeader(http.StatusBadRequest)
@@ -151,7 +151,7 @@ func (srv *Service) CreateOrder(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, err := auth.GetUserID(token.Value)
+	userID, err := auth.GetUserID(token.Value, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -215,7 +215,7 @@ func (srv *Service) GetUserOrders(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, err := auth.GetUserID(token.Value)
+	userID, err := auth.GetUserID(token.Value, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -257,7 +257,7 @@ func (srv *Service) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, err := auth.GetUserID(token.Value)
+	userID, err := auth.GetUserID(token.Value, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -314,7 +314,7 @@ func (srv *Service) WithdrawPoints(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, err := auth.GetUserID(token.Value)
+	userID, err := auth.GetUserID(token.Value, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -390,7 +390,7 @@ func (srv *Service) GetUserWithdrawals(res http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	userID, err := auth.GetUserID(token.Value)
+	userID, err := auth.GetUserID(token.Value, srv.Config.SecretKey)
 	if err != nil {
 		logger.Log.Info(err.Error())
 		http.Error(res, err.Error(), http.StatusBadRequest)

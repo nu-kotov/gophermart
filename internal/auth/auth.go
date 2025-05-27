@@ -13,19 +13,16 @@ type Claims struct {
 	Login  string
 }
 
-const TokenExp = time.Hour * 72
-const SecretKey = "supersecretkey"
-
-func BuildJWTString(userID string, login string) (string, error) {
+func BuildJWTString(userID string, login string, tokenExp time.Duration, secretKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TokenExp)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
 		},
 		UserID: userID,
 		Login:  login,
 	})
 
-	tokenString, err := token.SignedString([]byte(SecretKey))
+	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", err
 	}
@@ -33,14 +30,14 @@ func BuildJWTString(userID string, login string) (string, error) {
 	return tokenString, nil
 }
 
-func GetUserID(tokenString string) (string, error) {
+func GetUserID(tokenString string, secretKey string) (string, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (any, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("unexpected signing method")
 			}
-			return []byte(SecretKey), nil
+			return []byte(secretKey), nil
 		})
 	if err != nil {
 		return "", err
