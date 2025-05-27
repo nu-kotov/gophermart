@@ -23,11 +23,11 @@ import (
 
 type Service struct {
 	Config              *config.Config
-	Storage             storage.Storage
+	Storage             *storage.DBStorage
 	SaveAccrualPointsCh chan models.OrderData
 }
 
-func NewService(config *config.Config, storage storage.Storage) *Service {
+func NewService(config *config.Config, storage *storage.DBStorage) *Service {
 	var srv Service
 
 	srv.Config = config
