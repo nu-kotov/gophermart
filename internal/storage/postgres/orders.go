@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nu-kotov/gophermart/internal/models"
+	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
 func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData) error {
@@ -39,10 +40,10 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
 			if strings.Contains(pgErr.Message, "orders_pkey") {
-				return ErrUserOrderDuplicate
+				return dberrors.ErrUserOrderDuplicate
 			}
 
-			return ErrOrderDuplicate
+			return dberrors.ErrOrderDuplicate
 		}
 
 		return err
@@ -59,7 +60,7 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 	rows, err := pg.db.Query(query, userID)
 
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, dberrors.ErrNotFound
 	}
 
 	for rows.Next() {
@@ -155,7 +156,7 @@ func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.Orde
 	rows, err := pg.db.Query(query)
 
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, dberrors.ErrNotFound
 	}
 
 	for rows.Next() {

@@ -3,16 +3,10 @@ package postgres
 import (
 	"database/sql"
 	"embed"
-	"errors"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
-
-var ErrUserOrderDuplicate = errors.New("current user data conflict")
-var ErrOrderDuplicate = errors.New("data conflict")
-var ErrNotFound = errors.New("data not found")
-var ErrUserNoBalance = errors.New("user have not balance")
 
 type DBStorage struct {
 	db *sql.DB

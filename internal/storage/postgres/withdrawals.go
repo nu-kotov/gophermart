@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nu-kotov/gophermart/internal/models"
+	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
 func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) ([]models.WithdrawnInfo, error) {
@@ -17,7 +18,7 @@ func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) (
 	rows, err := pg.db.Query(query, userID)
 
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, dberrors.ErrNotFound
 	}
 
 	for rows.Next() {

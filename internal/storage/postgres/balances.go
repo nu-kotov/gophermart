@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nu-kotov/gophermart/internal/models"
+	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
 func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*models.UserBalance, error) {
@@ -25,7 +26,7 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 	if err != nil {
 
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNoBalance
+			return nil, dberrors.ErrUserNoBalance
 		}
 
 		return nil, err
