@@ -8,7 +8,7 @@ import (
 	"github.com/nu-kotov/gophermart/internal/auth"
 	"github.com/nu-kotov/gophermart/internal/logger"
 	"github.com/nu-kotov/gophermart/internal/models"
-	"github.com/nu-kotov/gophermart/internal/storage/db_errors"
+	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
 func (hnd *Handler) GetUserBalance(res http.ResponseWriter, req *http.Request) {
@@ -29,7 +29,7 @@ func (hnd *Handler) GetUserBalance(res http.ResponseWriter, req *http.Request) {
 
 	data, err := hnd.Storage.SelectUserBalance(req.Context(), userID)
 	if err != nil {
-		if errors.Is(err, db_errors.ErrUserNoBalance) {
+		if errors.Is(err, dberrors.ErrUserNoBalance) {
 			resp, err := json.Marshal(models.UserBalance{
 				Current:   0.0,
 				Withdrawn: 0.0,

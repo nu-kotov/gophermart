@@ -13,7 +13,7 @@ import (
 	"github.com/nu-kotov/gophermart/internal/auth"
 	"github.com/nu-kotov/gophermart/internal/logger"
 	"github.com/nu-kotov/gophermart/internal/models"
-	"github.com/nu-kotov/gophermart/internal/storage/db_errors"
+	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 	"github.com/phedde/luhn-algorithm"
 )
 
@@ -64,12 +64,12 @@ func (hnd *Handler) CreateOrder(res http.ResponseWriter, req *http.Request) {
 	err = hnd.Storage.InsertOrderData(req.Context(), &orderData)
 	res.Header().Set("Content-Type", "text/plain")
 	if err != nil {
-		if errors.Is(err, db_errors.ErrUserOrderDuplicate) {
+		if errors.Is(err, dberrors.ErrUserOrderDuplicate) {
 			logger.Log.Info(fmt.Sprintf("Order %d has already been placed by the user %s", intBody, userID))
 			res.WriteHeader(http.StatusOK)
 			return
 		}
-		if errors.Is(err, db_errors.ErrOrderDuplicate) {
+		if errors.Is(err, dberrors.ErrOrderDuplicate) {
 			logger.Log.Info(fmt.Sprintf("Order %d has already been placed by the user %s", intBody, userID))
 			res.WriteHeader(http.StatusConflict)
 			return
