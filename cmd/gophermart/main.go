@@ -19,15 +19,15 @@ func main() {
 		log.Fatal("Error initialize config: ", err)
 	}
 
-	store, err := storage.NewConnect(config.DatabaseConnection)
+	store, err := storage.NewStorage(config)
 	if err != nil {
 		log.Fatal("Error initialize storage: ", err)
 	}
 
-	service := handler.NewService(config, store)
-	router := NewRouter(*service)
+	handler := handler.NewHandler(config, store)
+	router := NewRouter(*handler)
 
-	defer service.Storage.Close()
+	defer handler.Storage.Close()
 
 	log.Fatal(http.ListenAndServe(config.RunAddr, router))
 }
