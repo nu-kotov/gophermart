@@ -13,6 +13,8 @@ type Config struct {
 	AccrualAddr        string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	SecretKey          string `env:"SECRET_KEY"`
 	TokenExp           time.Duration
+	TickerPeriod       time.Duration
+	WorkersNum         int
 }
 
 func NewConfig() (*Config, error) {
@@ -20,6 +22,8 @@ func NewConfig() (*Config, error) {
 
 	config.SecretKey = "supersecretkey"
 	config.TokenExp = time.Hour * 72
+	config.TickerPeriod = time.Second * 1
+	config.WorkersNum = 500
 
 	flag.StringVar(&config.RunAddr, "a", "localhost:8181", "address and port to run server")
 	flag.StringVar(&config.DatabaseConnection, "d", "", "Database connection string")

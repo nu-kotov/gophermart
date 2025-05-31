@@ -24,7 +24,7 @@ import (
 type OrdersStorage interface {
 	InsertOrderData(context.Context, *models.OrderData) error
 	SelectOrdersByUserID(context.Context, string) ([]models.GetUserOrdersResponse, error)
-	SelectUnprocessedOrders(ctx context.Context) ([]models.OrderData, error)
+	SelectUnprocessedOrders(ctx context.Context, limit int) ([]models.OrderData, error)
 	UpdateOrder(context.Context, *models.OrderData) error
 }
 
@@ -32,6 +32,7 @@ type OrdersHandler struct {
 	Config              *config.Config
 	Storage             OrdersStorage
 	SaveAccrualPointsCh chan models.OrderData
+	UnprocessedOrdersCh chan models.OrderData
 }
 
 func NewOrdersHandler(router *mux.Router, cfg *config.Config, storage OrdersStorage) {
@@ -40,6 +41,7 @@ func NewOrdersHandler(router *mux.Router, cfg *config.Config, storage OrdersStor
 		Config:              cfg,
 		Storage:             storage,
 		SaveAccrualPointsCh: make(chan models.OrderData, 1024),
+		UnprocessedOrdersCh: make(chan models.OrderData, 1024),
 	}
 
 	middlewareStack := middleware.Chain(
@@ -164,7 +166,7 @@ func (handler *OrdersHandler) GetUserOrders() http.HandlerFunc {
 }
 
 func (handler *OrdersHandler) SaveOrdersPoints() {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(handler.Config.TickerPeriod)
 
 	var OrdersForUpdate []models.OrderData
 
@@ -193,10 +195,16 @@ func (handler *OrdersHandler) SaveOrdersPoints() {
 }
 
 func (handler *OrdersHandler) GetAccrualPoints() {
-	ticker := time.NewTicker(1 * time.Second)
+	numWorkers := handler.Config.WorkersNum
+
+	for w := 1; w <= numWorkers; w++ {
+		go handler.worker()
+	}
+
+	ticker := time.NewTicker(handler.Config.TickerPeriod)
 
 	for range ticker.C {
-		unprocessedOrders, err := handler.Storage.SelectUnprocessedOrders(context.Background())
+		unprocessedOrders, err := handler.Storage.SelectUnprocessedOrders(context.Background(), numWorkers)
 		if err != nil {
 			logger.Log.Info(err.Error())
 			continue
@@ -205,31 +213,39 @@ func (handler *OrdersHandler) GetAccrualPoints() {
 			continue
 		}
 
-		client := resty.New()
 		for _, order := range unprocessedOrders {
-			strNum := strconv.FormatInt(order.Number, 10)
+			handler.UnprocessedOrdersCh <- order
+		}
+	}
+}
 
-			resp, err := client.R().Get(handler.Config.AccrualAddr + "/api/orders/" + strNum)
-			if err != nil {
-				logger.Log.Info(err.Error())
-				continue
-			}
-			if resp.StatusCode() == http.StatusNoContent || resp.StatusCode() == http.StatusTooManyRequests {
-				continue
-			}
+func (handler *OrdersHandler) worker() {
 
-			var accrualData models.AccrualResponse
-			err = json.Unmarshal(resp.Body(), &accrualData)
-			if err != nil {
-				logger.Log.Info(err.Error())
-				continue
-			}
-			if accrualData.Status == "PROCESSING" || accrualData.Status == "REGISTERED" || accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" {
-				order.Accrual = accrualData.Accrual
-				order.Status = accrualData.Status
+	client := resty.New()
+	for order := range handler.UnprocessedOrdersCh {
 
-				handler.SaveAccrualPointsCh <- order
-			}
+		strNum := strconv.FormatInt(order.Number, 10)
+
+		resp, err := client.R().Get(handler.Config.AccrualAddr + "/api/orders/" + strNum)
+		if err != nil {
+			logger.Log.Info(err.Error())
+			continue
+		}
+		if resp.StatusCode() == http.StatusNoContent || resp.StatusCode() == http.StatusTooManyRequests {
+			continue
+		}
+
+		var accrualData models.AccrualResponse
+		err = json.Unmarshal(resp.Body(), &accrualData)
+		if err != nil {
+			logger.Log.Info(err.Error())
+			continue
+		}
+		if accrualData.Status == "PROCESSING" || accrualData.Status == "REGISTERED" || accrualData.Status == "PROCESSED" || accrualData.Status == "INVALID" {
+			order.Accrual = accrualData.Accrual
+			order.Status = accrualData.Status
+
+			handler.SaveAccrualPointsCh <- order
 		}
 	}
 }

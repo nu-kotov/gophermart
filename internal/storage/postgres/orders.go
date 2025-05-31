@@ -152,12 +152,12 @@ func (ords *OrdersStorage) UpdateOrder(ctx context.Context, pointsData *models.O
 	return tx.Commit()
 }
 
-func (ords *OrdersStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.OrderData, error) {
+func (ords *OrdersStorage) SelectUnprocessedOrders(ctx context.Context, limit int) ([]models.OrderData, error) {
 	var unprocessedOrders []models.OrderData
 
-	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('NEW', 'REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
+	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('NEW', 'REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC LIMIT $1`
 
-	rows, err := ords.Stor.db.Query(query)
+	rows, err := ords.Stor.db.Query(query, limit)
 
 	if err != nil {
 		return nil, dberrors.ErrNotFound
