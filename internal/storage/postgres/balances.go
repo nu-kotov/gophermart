@@ -10,13 +10,17 @@ import (
 	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
-func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*models.UserBalance, error) {
+type BalanceStorage struct {
+	Stor *DBStorage
+}
+
+func (bs *BalanceStorage) SelectUserBalance(ctx context.Context, userID string) (*models.UserBalance, error) {
 
 	var userBalance models.UserBalance
 
 	query := `SELECT balance, withdrawn FROM users_balances WHERE user_id = $1`
 
-	row := pg.db.QueryRowContext(
+	row := bs.Stor.db.QueryRowContext(
 		ctx,
 		query,
 		userID,
@@ -35,12 +39,12 @@ func (pg *DBStorage) SelectUserBalance(ctx context.Context, userID string) (*mod
 	return &userBalance, nil
 }
 
-func (pg *DBStorage) UpdateUserBalance(ctx context.Context, newBalance *models.UserBalance, withdraw *models.Withdraw) error {
+func (bs *BalanceStorage) UpdateUserBalance(ctx context.Context, newBalance *models.UserBalance, withdraw *models.Withdraw) error {
 
 	updateUsersBalances := `UPDATE users_balances SET balance=$1, withdrawn=$2 WHERE user_id = $3`
 	insertWithdrawal := `INSERT INTO withdrawals (number, user_id, sum, withdrawn_at) VALUES ($1, $2, $3, $4);`
 
-	tx, err := pg.db.Begin()
+	tx, err := bs.Stor.db.Begin()
 	if err != nil {
 		return err
 	}

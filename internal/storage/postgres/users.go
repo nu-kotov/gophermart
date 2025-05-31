@@ -7,11 +7,15 @@ import (
 	"github.com/nu-kotov/gophermart/internal/models"
 )
 
-func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) error {
+type UsersStorage struct {
+	Stor *DBStorage
+}
+
+func (usrs *UsersStorage) InsertUserData(ctx context.Context, data *models.UserData) error {
 
 	sql := `INSERT INTO users (login, password) VALUES ($1, $2);`
 
-	tx, err := pg.db.Begin()
+	tx, err := usrs.Stor.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -31,13 +35,13 @@ func (pg *DBStorage) InsertUserData(ctx context.Context, data *models.UserData) 
 	return tx.Commit()
 }
 
-func (pg *DBStorage) SelectUserData(ctx context.Context, data *models.UserData) (*models.UserData, error) {
+func (usrs *UsersStorage) SelectUserData(ctx context.Context, data *models.UserData) (*models.UserData, error) {
 
 	var userData models.UserData
 
 	sql := `SELECT user_id, password from users WHERE login = $1`
 
-	row := pg.db.QueryRowContext(
+	row := usrs.Stor.db.QueryRowContext(
 		ctx,
 		sql,
 		data.Login,

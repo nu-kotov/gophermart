@@ -10,12 +10,16 @@ import (
 	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
-func (pg *DBStorage) SelectUserWithdrawals(ctx context.Context, userID string) ([]models.WithdrawnInfo, error) {
+type WithdrawalsStorage struct {
+	Stor *DBStorage
+}
+
+func (ws *WithdrawalsStorage) SelectUserWithdrawals(ctx context.Context, userID string) ([]models.WithdrawnInfo, error) {
 	var data []models.WithdrawnInfo
 
 	query := `SELECT number, sum, withdrawn_at FROM withdrawals WHERE user_id = $1 ORDER BY withdrawn_at DESC`
 
-	rows, err := pg.db.Query(query, userID)
+	rows, err := ws.Stor.db.Query(query, userID)
 
 	if err != nil {
 		return nil, dberrors.ErrNotFound

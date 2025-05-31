@@ -15,11 +15,15 @@ import (
 	"github.com/nu-kotov/gophermart/internal/storage/dberrors"
 )
 
-func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData) error {
+type OrdersStorage struct {
+	Stor *DBStorage
+}
+
+func (ords *OrdersStorage) InsertOrderData(ctx context.Context, data *models.OrderData) error {
 
 	sql := `INSERT INTO orders (number, user_id, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`
 
-	tx, err := pg.db.Begin()
+	tx, err := ords.Stor.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -52,12 +56,12 @@ func (pg *DBStorage) InsertOrderData(ctx context.Context, data *models.OrderData
 	return tx.Commit()
 }
 
-func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([]models.GetUserOrdersResponse, error) {
+func (ords *OrdersStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([]models.GetUserOrdersResponse, error) {
 	var data []models.GetUserOrdersResponse
 
 	query := `SELECT number, status, accrual, uploaded_at from orders WHERE user_id = $1 ORDER BY uploaded_at DESC`
 
-	rows, err := pg.db.Query(query, userID)
+	rows, err := ords.Stor.db.Query(query, userID)
 
 	if err != nil {
 		return nil, dberrors.ErrNotFound
@@ -89,7 +93,7 @@ func (pg *DBStorage) SelectOrdersByUserID(ctx context.Context, userID string) ([
 	return data, nil
 }
 
-func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderData) error {
+func (ords *OrdersStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderData) error {
 
 	updateOrder := `UPDATE orders SET status=$1, accrual=$2 WHERE number=$3`
 	currentBalance := `SELECT balance FROM users_balances WHERE user_id=$1`
@@ -99,7 +103,7 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderDa
 		    SET balance=$1;
 	`
 
-	tx, err := pg.db.Begin()
+	tx, err := ords.Stor.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -117,7 +121,7 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderDa
 		return err
 	}
 
-	row := pg.db.QueryRowContext(
+	row := ords.Stor.db.QueryRowContext(
 		ctx,
 		currentBalance,
 		pointsData.UserID,
@@ -148,12 +152,12 @@ func (pg *DBStorage) UpdateOrder(ctx context.Context, pointsData *models.OrderDa
 	return tx.Commit()
 }
 
-func (pg *DBStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.OrderData, error) {
+func (ords *OrdersStorage) SelectUnprocessedOrders(ctx context.Context) ([]models.OrderData, error) {
 	var unprocessedOrders []models.OrderData
 
 	query := `SELECT number, user_id, status, accrual FROM orders WHERE status IN ('NEW', 'REGISTERED', 'PROCESSING') ORDER BY uploaded_at DESC`
 
-	rows, err := pg.db.Query(query)
+	rows, err := ords.Stor.db.Query(query)
 
 	if err != nil {
 		return nil, dberrors.ErrNotFound
