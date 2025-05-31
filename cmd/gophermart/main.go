@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -12,36 +13,34 @@ import (
 )
 
 func main() {
+	err := run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	if err := logger.NewLogger("info"); err != nil {
-		log.Fatal("Error initialize zap logger: ", err)
+		logger.Log.Info(fmt.Sprintf("Error initialize zap logger: %s", err.Error()))
+		return err
 	}
 
 	config, err := config.NewConfig()
 	if err != nil {
-		log.Fatal("Error initialize config: ", err)
+		logger.Log.Info(fmt.Sprintf("Error initialize config: %s", err.Error()))
+		return err
 	}
 
 	pgStor, err := storage.NewPgStorage(config)
 	if err != nil {
-		log.Fatal("Error pg connection: ", err)
+		logger.Log.Info(fmt.Sprintf("Error pg connection: %s", err.Error()))
+		return err
 	}
 
 	balanceStorage := storage.NewBalanceStorage(pgStor)
-	if err != nil {
-		log.Fatal("Error initialize BalanceStorage: ", err)
-	}
 	ordersStorage := storage.NewOrdersStorage(pgStor)
-	if err != nil {
-		log.Fatal("Error initialize OrdersStorage: ", err)
-	}
 	usersStorage := storage.NewUsersStorage(pgStor)
-	if err != nil {
-		log.Fatal("Error initialize UsersStorage: ", err)
-	}
 	withdrawalsStorage := storage.NewWithdrawalsStorage(pgStor)
-	if err != nil {
-		log.Fatal("Error initialize WithdrawalsStorage: ", err)
-	}
 
 	router := mux.NewRouter()
 
@@ -52,5 +51,10 @@ func main() {
 
 	defer pgStor.Close()
 
-	log.Fatal(http.ListenAndServe(config.RunAddr, router))
+	err = http.ListenAndServe(config.RunAddr, router)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("Error starting server: %s", err.Error()))
+		return err
+	}
+	return nil
 }
